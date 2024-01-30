@@ -1,0 +1,19 @@
+profile = "testing"
+region  = "us-east-1"
+
+vpc_cidr_block           = "10.0.0.0/24"
+vpc_private_subnet_cidrs = ["10.0.0.0/28", "10.0.0.16/28"]
+vpc_public_subnet_cidr   = "10.0.0.32/28"
+
+rds_db_name  = "main"
+rds_username = "postgres"
+rds_password = "pg_password"
+
+ecs_task_container_name = "electric-sync"
+pg_proxy_password       = "proxy_password"
+
+tls_cert_domain  = "example.com"
+tls_cert_aliases = ["*.example.com"]
+
+s3_bucket_name    = "my-web-app-bucket"
+cloudfront_domain = "example.com"
