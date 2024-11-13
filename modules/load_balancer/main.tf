@@ -36,9 +36,9 @@ resource "aws_security_group" "lb_sg" {
 resource "aws_lb" "main" {
   name               = var.load_balancer_name
   internal           = false
-  load_balancer_type = "network"
+  load_balancer_type = "application"
   security_groups    = [aws_security_group.lb_sg.id]
-  subnets            = [var.public_subnet_id]
+  subnets            = var.subnet_ids
 
   tags = {
     Name = var.load_balancer_name
@@ -48,10 +48,8 @@ resource "aws_lb" "main" {
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.id
   port              = 80
-  protocol          = "TCP"
+  protocol          = "HTTP"
 
-  # Network Load Balancer does not support redirects so we simply
-  # forward HTTP traffic to the target group.
   default_action {
     target_group_arn = var.lb_target_group_main.id
     type             = "forward"
@@ -65,8 +63,7 @@ resource "aws_lb_listener" "http" {
 resource "aws_lb_listener" "https" {
   load_balancer_arn = aws_lb.main.id
   port              = 443
-  protocol          = "TLS"
-  alpn_policy       = "HTTP2Preferred"
+  protocol          = "HTTPS"
 
   ssl_policy      = var.ssl_policy
   certificate_arn = var.tls_certificate.arn

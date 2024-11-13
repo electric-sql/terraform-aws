@@ -2,8 +2,8 @@ variable "vpc_id" {
   description = "ID of the VPC created in the root module"
 }
 
-variable "public_subnet_id" {
-  description = "The public subnet where the load balancer wil be running"
+variable "subnet_ids" {
+  description = "List of subnets IDs for the load balancer. These subnets must be from at leat two AZs."
 }
 
 variable "ssl_policy" {
