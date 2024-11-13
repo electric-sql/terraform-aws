@@ -9,7 +9,7 @@ module "vpc" {
   source = "./modules/vpc"
 
   cidr_block           = var.vpc_cidr_block
-  public_subnet_cidr   = var.vpc_public_subnet_cidr
+  public_subnet_cidrs  = var.vpc_public_subnet_cidrs
   private_subnet_cidrs = var.vpc_private_subnet_cidrs
 }
 
@@ -38,20 +38,20 @@ module "ecs_task_definition" {
 
   container_environment = [
     {
-      name  = "AUTH_MODE"
-      value = "insecure"
+      name  = "LOG_LEVEL"
+      value = "info"
     },
     {
       name  = "DATABASE_URL"
       value = module.rds.connection_uri
     },
     {
-      name  = "ELECTRIC_WRITE_TO_PG_MODE"
-      value = "direct_writes"
+      name  = "ELECTRIC_INSTANCE_ID"
+      value = "terraform-aws-test-instance"
     },
     {
-      name  = "PG_PROXY_PASSWORD"
-      value = var.pg_proxy_password
+      name  = "PROMETHEUS_PORT"
+      value = "4000"
     }
   ]
 }
@@ -60,8 +60,8 @@ module "ecs_service" {
   source = "./modules/ecs_service"
 
   vpc_id              = module.vpc.id
-  public_subnet_cidr  = var.vpc_public_subnet_cidr
-  public_subnet_id    = module.vpc.public_subnet_id
+  public_subnet_cidrs = var.vpc_public_subnet_cidrs
+  public_subnet_ids   = module.vpc.public_subnet_ids
   task_definition     = module.ecs_task_definition
   task_container_name = var.ecs_task_container_name
 }
@@ -84,13 +84,12 @@ resource "aws_acm_certificate" "tls_cert" {
 module "load_balancer" {
   source = "./modules/load_balancer"
 
-  vpc_id           = module.vpc.id
-  public_subnet_id = module.vpc.public_subnet_id
-  tls_certificate  = aws_acm_certificate.tls_cert
-  ssl_policy       = var.load_balancer_ssl_policy
+  vpc_id          = module.vpc.id
+  subnet_ids      = module.vpc.public_subnet_ids
+  tls_certificate = aws_acm_certificate.tls_cert
+  ssl_policy      = var.load_balancer_ssl_policy
 
-  lb_target_group_main  = module.ecs_service.lb_target_group_main
-  lb_target_group_proxy = module.ecs_service.lb_target_group_proxy
+  lb_target_group_main = module.ecs_service.lb_target_group_main
 }
 
 ### Frontend

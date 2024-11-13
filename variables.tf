@@ -13,8 +13,8 @@ variable "vpc_private_subnet_cidrs" {
   description = "List of CIDR blocks for private subnets. These subnets will be assigned to the RDS subnet group"
 }
 
-variable "vpc_public_subnet_cidr" {
-  description = "CIDR block for the single public subnet to run the ECS task in"
+variable "vpc_public_subnet_cidrs" {
+  description = "List of CIDR blocks for public subnets. These subnets will be used by the application load balancer"
 }
 
 variable "rds_username" {
@@ -36,10 +36,6 @@ variable "docker_image_tag" {
 
 variable "ecs_task_container_name" {
   description = "Name of the container in ecs_task_definition"
-}
-
-variable "pg_proxy_password" {
-  description = "Password for Electric's Migrations proxy"
 }
 
 variable "tls_cert_domain" {
