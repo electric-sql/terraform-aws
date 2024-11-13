@@ -32,7 +32,7 @@ resource "aws_ecs_task_definition" "electric_sync" {
   family                   = var.task_definition_family
   network_mode             = "awsvpc"
   requires_compatibilities = ["FARGATE"]
-  cpu                      = 256 # 0.5 vCPU
+  cpu                      = 256 # 0.25 vCPU
   memory                   = 512 # 0.5 GB
 
   execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
@@ -52,16 +52,10 @@ resource "aws_ecs_task_definition" "electric_sync" {
       portMappings = [
         {
           name          = "http"
-          containerPort = 5133
-          hostPort      = 5133
+          containerPort = 3000
+          hostPort      = 3000
           protocol      = "tcp"
           appProtocol   = "http"
-        },
-        {
-          name          = "postgres"
-          containerPort = 65432
-          hostPort      = 65432
-          protocol      = "tcp"
         }
       ]
 

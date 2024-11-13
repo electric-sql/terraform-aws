@@ -13,20 +13,8 @@ module "ecs_task_definition" {
 
   container_environment = [
     {
-      name  = "AUTH_MODE"
-      value = "insecure"
-    },
-    {
       name  = "DATABASE_URL"
       value = "postgresql://..."
-    },
-    {
-      name  = "ELECTRIC_WRITE_TO_PG_MODE"
-      value = "direct_writes"
-    },
-    {
-      name  = "PG_PROXY_PASSWORD"
-      value = var.pg_proxy_password
     }
   ]
 }
