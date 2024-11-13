@@ -2,12 +2,12 @@ variable "vpc_id" {
   description = "ID of the VPC created in the root module"
 }
 
-variable "public_subnet_cidr" {
+variable "public_subnet_cidrs" {
   description = "Address space of the public subnet, in CIDR notation"
 }
 
-variable "public_subnet_id" {
-  description = "ID of the public subnet which the ECS service will run in"
+variable "public_subnet_ids" {
+  description = "IDs of public subnets which the ECS service will run in"
 }
 
 variable "task_definition" {
