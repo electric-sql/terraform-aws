@@ -29,15 +29,20 @@ resource "aws_subnet" "private" {
   }
 }
 
-## Public subnet
+## Public subnets
+
+locals {
+  num_public_subnets = length(var.private_subnet_cidrs)
+}
 
 resource "aws_subnet" "public" {
+  count             = local.num_public_subnets
   vpc_id            = aws_vpc.main.id
-  cidr_block        = var.public_subnet_cidr
-  availability_zone = data.aws_availability_zones.available.names[0]
+  cidr_block        = var.public_subnet_cidrs[count.index]
+  availability_zone = data.aws_availability_zones.available.names[count.index]
 
   tags = {
-    Name = var.public_subnet_name
+    Name = "${var.public_subnet_name_prefix}[${count.index}]"
   }
 }
 
@@ -63,6 +68,7 @@ resource "aws_route_table" "public" {
 }
 
 resource "aws_route_table_association" "public" {
-  subnet_id      = aws_subnet.public.id
+  count          = local.num_public_subnets
+  subnet_id      = aws_subnet.public[count.index].id
   route_table_id = aws_route_table.public.id
 }

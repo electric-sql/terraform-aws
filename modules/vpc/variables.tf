@@ -6,8 +6,8 @@ variable "private_subnet_cidrs" {
   description = "Address spaces for private subnets, in CIDR notation"
 }
 
-variable "public_subnet_cidr" {
-  description = "Address space for the public subnet, in CIDR notation"
+variable "public_subnet_cidrs" {
+  description = "Address space for public subnets, in CIDR notation"
 }
 
 variable "vpc_name" {
@@ -20,8 +20,8 @@ variable "private_subnet_name_prefix" {
   default     = "Electric Private Subnet"
 }
 
-variable "public_subnet_name" {
-  description = "Name of the public subnet"
+variable "public_subnet_name_prefix" {
+  description = "Name prefix to use for the public subnets"
   default     = "Electric Public Subnet"
 }
 
