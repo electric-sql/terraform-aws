@@ -30,6 +30,5 @@ module "load_balancer" {
   tls_certificate  = aws_acm_certificate.tls_cert
 
   lb_target_group_main  = module.ecs_service.lb_target_group_main
-  lb_target_group_proxy = module.ecs_service.lb_target_group_proxy
 }
 ```

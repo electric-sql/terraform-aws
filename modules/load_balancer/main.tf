@@ -20,14 +20,6 @@ resource "aws_security_group" "lb_sg" {
     ipv6_cidr_blocks = ["::/0"]
   }
 
-  ingress {
-    protocol         = "tcp"
-    from_port        = 65432
-    to_port          = 65432
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
   egress {
     protocol         = "-1"
     from_port        = 0
@@ -86,23 +78,5 @@ resource "aws_lb_listener" "https" {
 
   tags = {
     Name = var.https_listener_name
-  }
-}
-
-resource "aws_lb_listener" "proxy" {
-  load_balancer_arn = aws_lb.main.id
-  port              = 65432
-  protocol          = "TCP" # "TLS"
-
-  # ssl_policy      = var.ssl_policy
-  # certificate_arn = var.tls_certificate.arn
-
-  default_action {
-    target_group_arn = var.lb_target_group_proxy.id
-    type             = "forward"
-  }
-
-  tags = {
-    Name = var.proxy_listener_name
   }
 }
