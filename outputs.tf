@@ -1,9 +1,5 @@
 # NOTE: See respective modules' outputs.tf file for descriptions of these outputs.
 
-output "cloudfront_domain" {
-  value = module.cloudfront.distribution_domain
-}
-
 output "load_balancer_domain" {
   value = module.load_balancer.dns_name
 }

@@ -91,19 +91,3 @@ module "load_balancer" {
 
   lb_target_group_main = module.ecs_service.lb_target_group_main
 }
-
-### Frontend
-
-module "s3" {
-  source = "./modules/s3"
-
-  app_bucket_name = var.s3_bucket_name
-}
-
-module "cloudfront" {
-  source = "./modules/cloudfront"
-
-  web_app_bucket            = module.s3.bucket
-  tls_certificate           = aws_acm_certificate.tls_cert
-  distribution_domain_alias = var.cloudfront_domain
-}

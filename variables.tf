@@ -42,7 +42,8 @@ variable "tls_cert_domain" {
   description = "Primary domain name in the certificate"
   # Intended to be used as the domain name of your web app.
   #
-  # Add a CNAME record containing the CloudFront distribution domain, for example,
+  # Add a CNAME record containing the CloudFront distribution domain or whatever other platform
+  # you are using to host your user-facing web app, for example,
   #
   #   CNAME  example.com  dcg4fctrf2vrb.cloudfront.net
 }
@@ -64,12 +65,4 @@ variable "tls_cert_key_algorithm" {
 variable "load_balancer_ssl_policy" {
   description = "SSL Policy to use for the Network Load Balancer"
   default     = "ELBSecurityPolicy-TLS13-1-2-2021-06"
-}
-
-variable "s3_bucket_name" {
-  description = "Name of the S3 bucket for hosting the web app's assets"
-}
-
-variable "cloudfront_domain" {
-  description = "Domain name to use for the CloudFront distribution's 'Alternate domain names'. Usually the same value as tls_cert_domain."
 }

@@ -15,6 +15,3 @@ docker_image_tag = "latest"
 
 tls_cert_domain  = "example.com"
 tls_cert_aliases = ["*.example.com"]
-
-s3_bucket_name    = "my-web-app-bucket"
-cloudfront_domain = "example.com"
