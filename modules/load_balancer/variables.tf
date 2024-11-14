@@ -6,12 +6,8 @@ variable "subnet_ids" {
   description = "List of subnets IDs for the load balancer. These subnets must be from at leat two AZs."
 }
 
-variable "ssl_policy" {
-  description = "SSL policy"
-}
-
-variable "tls_certificate" {
-  description = "An aws_certificate_request object"
+variable "tls_certificate_arn" {
+  description = "ARN of the TLS certificate to use with the HTTPS listener"
 }
 
 variable "lb_target_group_main" {

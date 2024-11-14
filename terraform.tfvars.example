@@ -13,5 +13,4 @@ ecs_task_container_name = "electric-sync"
 
 docker_image_tag = "latest"
 
-tls_cert_domain  = "example.com"
-tls_cert_aliases = ["*.example.com"]
+tls_certificate_arn = "arn:aws:acm:REGION:ACCOUNT_ID:certificate/UUID"
