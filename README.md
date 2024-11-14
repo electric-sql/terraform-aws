@@ -4,17 +4,13 @@ ElectricSQL on Amazon ECS
 Terraform configuration for provisioning an ECS cluster to run [ElectricSQL](https://electric-sql.com/) behind an Application Load Balancer, connected to an instance of RDS for PostgreSQL.
 
 > [!WARNING]
-> This Terraform configuration is a **work in progress**. We don't recommend using it
-> in a production setting just yet.
+> This Terraform configuration is a **work in progress**. You should review it carefully
+> before using it in a production setting.
 >
 > Please let us know if you notice any bugs, missing configuration or poorly chosen
 > defaults. See "Contributing" and "Support" sections at the bottom.
 
 ## Overview
-
-The top-level configuration is comprised of logical modules, providing a concise and high-level overview of the whole setup. Each module is defined in a subdirectory of the top-level `modules/` directory. The only external dependency used is the [hashicorp/aws](https://registry.terraform.io/providers/hashicorp/aws/latest/docs) provider.
-
-This is meant to be used as a starting point for a production deployment of your electrified local-first app to AWS. Feel free to make changes to it and adapt the included modules to your needs.
 
 Running `terraform apply` for this configuration without any modifications will provision the following infrastructure:
 
@@ -29,7 +25,8 @@ Things you can customize with input variables:
   - database credentials
   - Electric's Docker image tag, etc.
 
-**NOTE:** when building a new infrastructure from scratch for the first time, a few manual steps will be required, such as initializing the remote state for Terraform and requesting a TLS certificate from AWS Certificate Manager for your custom domain, etc. See the next section for a complete walkthrough.
+> [!NOTE]
+> When building this infrastructure from scratch for the first time, you will need to perform some manual steps, including initializing the remote state for Terraform and requesting a TLS certificate from AWS Certificate Manager. See the next section for a complete walkthrough.
 
 ## Usage
 
@@ -37,65 +34,61 @@ Things you can customize with input variables:
 
 To set up a new infra from scratch, follow these steps:
 
-  1. Sign in to AWS CLI and input your access key id, secret key and region.
+1. Sign in to AWS CLI and input your access key id, secret key and region.
 
-     ```shell
-     aws configure --profile '<profile-name>'
-     ```
+```shell
+aws configure --profile '<profile-name>'
+```
 
-  2. Initialize the provider and local modules.
+2. Initialize the provider and local modules.
 
-     ```shell
-     terraform init
-     ```
+```shell
+terraform init
+```
 
-  3. Copy the `terraform.tfvars.example` file and edit the variable values in it to match your
-     preferences. Use the same `<profile-name>` you specified above for the `profile` variable in
-     your `terraform.tfvars` file.
+3. Copy the `terraform.tfvars.example` file and edit the variable values in it to match your
+preferences. Use the same `<profile-name>` you specified above for the `profile` variable in
+your `terraform.tfvars` file.
 
-     ```shell
-     cp terraform.tfvars.example terraform.tfvars
-     ```
+```shell
+cp terraform.tfvars.example terraform.tfvars
+```
 
-  4. Request a TLS certificate from AWS Certificate Mananger, e.g. via the AWS console
-     (https://console.aws.amazon.com/acm/home).
+4. Request a TLS certificate from AWS Certificate Mananger, e.g. via the AWS console
+(https://console.aws.amazon.com/acm/home). You will need to provide a domain name, such as `my-electric-sync-service.example.com`. Keep a note of this as you'll create a CNAME for it below once you know the load balancer's hostname. (This is *different* from the validation CNAME you add in the next step).
 
-  5. Add the required CNAME records to your custom domain on the website you use to manage
-     your domain names so that AWS can validate the certificate request and issue the certificate.
+5. Verify your ownership of the domain by adding a validation CNAME record to your domain on the website you use to manage your DNS records. This is so that AWS can validate the certificate request and issue the certificate. You can find the "CNAME name" and "CNAME value" to use in the "Domains" section of the certificate page once you've created it. (If you don't see the information in the table, scroll right!).
 
-  6. Use the ARN of the newly issued certificate as the value for the top-level `tls_certificate_arn`
-     variable in your `terraform.tfvars` file.
+6. Use the ARN of the newly issued certificate as the value for the top-level `tls_certificate_arn` variable in your `terraform.tfvars` file.
 
-  7. Provision the infrastructure.
+7. Provision the infrastructure.
 
-     ```shell
-     terraform apply
-     ```
+```shell
+terraform apply
+```
 
-  8. Once the load balancer is up an running, create a new CNAME record on your domain using
-     the load balancer's generated domain name as the value. Here's how it might look in
-     Namecheap's advanced DNS management view:
+8. Once the load balancer is up an running, create another new CNAME record on your domain using with the domain you chose for your certificate as the name and the load balancer's generated domain name as the value. Here's how it might look in Namecheap's advanced DNS management view:
 
-     ![CNAME in Namecheap](img/namecheap_cname.png)
+![CNAME in Namecheap](img/namecheap_cname.png)
 
-  9. Try sending an HTTP request to your custom domain to verify that it's working:
+9. Try sending an HTTP request to your custom domain to verify that it's working:
 
-     ```sh
-     $ curl -i https://sync.aws-testing.example.com/v1/health
-     HTTP/2 200
-     date: Thu, 14 Nov 2024 11:28:57 GMT
-     content-type: application/json
-     content-length: 19
-     vary: accept-encoding
-     cache-control: no-cache, no-store, must-revalidate
-     x-request-id: GAfSPDjAhfDWy3QAAAXy
-     server: ElectricSQL/0.8.1
-     access-control-allow-origin: *
-     access-control-expose-headers: *
-     access-control-allow-methods: GET, HEAD
+```sh
+$ curl -i https://sync.aws-testing.example.com/v1/health
+HTTP/2 200
+date: Thu, 14 Nov 2024 11:28:57 GMT
+content-type: application/json
+content-length: 19
+vary: accept-encoding
+cache-control: no-cache, no-store, must-revalidate
+x-request-id: GAfSPDjAhfDWy3QAAAXy
+server: ElectricSQL/0.8.1
+access-control-allow-origin: *
+access-control-expose-headers: *
+access-control-allow-methods: GET, HEAD
 
-     {"status":"active"}
-     ```
+{"status":"active"}
+```
 
 ### Updating the sync service
 
