@@ -1,36 +1,32 @@
 ElectricSQL on Amazon ECS
 =========================
 
-Terraform configuration for provisioning an ECS cluster to run [ElectricSQL](https://electric-sql.com/) behind a Network Load Balancer, connected to an instance of RDS for PostgreSQL, together with a CloudFront distribution backed by an S3 bucket for hosting assets of the local-first web app.
+Terraform configuration for provisioning an ECS cluster to run [ElectricSQL](https://electric-sql.com/) behind an Application Load Balancer, connected to an instance of RDS for PostgreSQL.
 
 > [!WARNING]
-> This Terraform configuration is a **work in progress**. We don't recommend using it
-> in a production setting just yet.
+> This Terraform configuration is a **work in progress**. You should review it carefully
+> before using it in a production setting.
 >
 > Please let us know if you notice any bugs, missing configuration or poorly chosen
 > defaults. See "Contributing" and "Support" sections at the bottom.
 
 ## Overview
 
-The top-level configuration is comprised of logical modules, providing a concise and high-level overview of the whole setup. Each module is defined in a subdirectory of the top-level `modules/` directory. The only external dependency used is the [hashicorp/aws](https://registry.terraform.io/providers/hashicorp/aws/latest/docs) provider.
-
-This is meant to be used as a starting point for a production deployment of your electrified local-first app to AWS. Feel free to make changes to it and adapt the included modules to your needs.
-
 Running `terraform apply` for this configuration without any modifications will provision the following infrastructure:
 
-  - a new VPC with two private subnets and one public subnet
+  - a new VPC with two private and two public subnets
   - an instance of RDS for PostgreSQL that has logical replication enabled
   - Electric sync service running the `electricsql/electric:latest` image [from Docker Hub](https://hub.docker.com/r/electricsql/electric) as a Fargate task on ECS
-  - a new S3 bucket for hosting your web app's assets
-  - a CloudFront distribution to serve the web app
+  - an Application Load Balancer with an HTTP and an HTTPS listener, both routing to the default port of the Electric sync service container
 
 Things you can customize with input variables:
 
   - the name of each logical component
   - database credentials
-  - domain names used for the CloudFront distribution and the NLB
+  - Electric's Docker image tag, etc.
 
-**NOTE:** when building a new infrastructure from scratch for the first time, a few manual steps will be required, such as initializing the remote state for Terraform, validating a TLS certificate request for your custom domain, etc. See the next section for a complete walkthrough.
+> [!NOTE]
+> When building this infrastructure from scratch for the first time, you will need to perform some manual steps, including initializing the remote state for Terraform and requesting a TLS certificate from AWS Certificate Manager. See the next section for a complete walkthrough.
 
 ## Usage
 
@@ -38,50 +34,60 @@ Things you can customize with input variables:
 
 To set up a new infra from scratch, follow these steps:
 
-  1. Sign in to AWS CLI and input your access key id, secret key and region.
-
-     ```shell
-     aws configure --profile '<profile-name>'
-     ```
-
-  2. Initialize the provider and local modules.
-
-     ```shell
-     terraform init
-     ```
-
-  3. Copy the `terraform.tfvars.example` file and edit the variable values in it to match your
-     preferences. Use the same `<profile-name>` you specified above for the `profile` variable in
-     your `terraform.tfvars` file.
-
-     ```shell
-     cp terraform.tfvars.example terraform.tfvars
-     ```
-
-  4. Finally, provision the infrastructure.
-
-     ```shell
-     terraform apply
-     ```
-
-  5. TODO: Validate the certificate request.
-  5. TODO: Add a CNAME to your domain pointing at the Load Balancer endpoint.
-  5. TODO: Add a CNAME to your domain pointing at the Cloudfront distribution endpoint.
-
-### Deploying the web app
-
-With the S3-backend CloudFront setup created by the configuration in this repo, all you need to release a new version of your web app is upload its latest assets to the S3 bucket.
+1. Sign in to AWS CLI and input your access key id, secret key and region.
 
 ```shell
-# Change directory to your web app. For example,
-cd examples/web-wa-sqlite
+aws configure --profile '<profile-name>'
+```
 
-# Build app assets
-npm run build
+2. Initialize the provider and local modules.
 
-# Upload the assets to the S3 bucket, deleting previous versions of the bundles
-# and other remote files that are no longer included in the local build.
-aws s3 sync dist/ s3://electric-aws-example-app-bucket --delete
+```shell
+terraform init
+```
+
+3. Copy the `terraform.tfvars.example` file and edit the variable values in it to match your
+preferences. Use the same `<profile-name>` you specified above for the `profile` variable in
+your `terraform.tfvars` file.
+
+```shell
+cp terraform.tfvars.example terraform.tfvars
+```
+
+4. Request a TLS certificate from AWS Certificate Mananger, e.g. via the AWS console
+(https://console.aws.amazon.com/acm/home). You will need to provide a domain name, such as `my-electric-sync-service.example.com`. Keep a note of this as you'll create a CNAME for it below once you know the load balancer's hostname. (This is *different* from the validation CNAME you add in the next step).
+
+5. Verify your ownership of the domain by adding a validation CNAME record to your domain on the website you use to manage your DNS records. This is so that AWS can validate the certificate request and issue the certificate. You can find the "CNAME name" and "CNAME value" to use in the "Domains" section of the certificate page once you've created it. (If you don't see the information in the table, scroll right!).
+
+6. Use the ARN of the newly issued certificate as the value for the top-level `tls_certificate_arn` variable in your `terraform.tfvars` file.
+
+7. Provision the infrastructure.
+
+```shell
+terraform apply
+```
+
+8. Once the load balancer is up an running, create another new CNAME record on your domain using with the domain you chose for your certificate as the name and the load balancer's generated domain name as the value. Here's how it might look in Namecheap's advanced DNS management view:
+
+![CNAME in Namecheap](img/namecheap_cname.png)
+
+9. Try sending an HTTP request to your custom domain to verify that it's working:
+
+```sh
+$ curl -i https://sync.aws-testing.example.com/v1/health
+HTTP/2 200
+date: Thu, 14 Nov 2024 11:28:57 GMT
+content-type: application/json
+content-length: 19
+vary: accept-encoding
+cache-control: no-cache, no-store, must-revalidate
+x-request-id: GAfSPDjAhfDWy3QAAAXy
+server: ElectricSQL/0.8.1
+access-control-allow-origin: *
+access-control-expose-headers: *
+access-control-allow-methods: GET, HEAD
+
+{"status":"active"}
 ```
 
 ### Updating the sync service
@@ -115,9 +121,7 @@ Included modules:
   - [rds](./modules/rds) - instance of RDS for Postgres with logical replication enabled
   - [ecs_task_definition](./modules/ecs_task_definition) - Fargate task for the Electric sync service based on the [Docker Hub image](https://hub.docker.com/r/electricsql/electric)
   - [ecs_service](./modules/ecs_service) - custom ECS cluster with one Fargate service that uses the task definition from above
-  - [load_balancer](./modules/load_balancer) - Network Load Balancer for SSL termination and routing traffic to the sync service's HTTP and TCP ports
-  - [s3](./modules/s3) - S3 bucket to host the web app's assets
-  - [cloudfront](./modules/cloudfront) - CloudFront distribution for serving the web app
+  - [load_balancer](./modules/load_balancer) - Application Load Balancer for SSL termination and routing traffic to the sync service's HTTP port
 
 ## Input variables
 

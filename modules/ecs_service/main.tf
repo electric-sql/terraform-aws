@@ -3,7 +3,7 @@
 resource "aws_lb_target_group" "main" {
   name        = var.main_target_group_name
   port        = 80
-  protocol    = "TCP"
+  protocol    = "HTTP"
   vpc_id      = var.vpc_id
   target_type = "ip"
 
@@ -11,8 +11,7 @@ resource "aws_lb_target_group" "main" {
 
   health_check {
     protocol            = "HTTP"
-    port                = 5133
-    path                = "/api/status"
+    path                = "/v1/health"
     matcher             = "200"
     timeout             = "3"
     interval            = "30"
@@ -25,28 +24,6 @@ resource "aws_lb_target_group" "main" {
   }
 }
 
-resource "aws_lb_target_group" "proxy" {
-  name        = var.proxy_target_group_name
-  port        = 65432
-  protocol    = "TCP"
-  vpc_id      = var.vpc_id
-  target_type = "ip"
-
-  deregistration_delay = 5
-
-  health_check {
-    protocol            = "TCP"
-    timeout             = "3"
-    interval            = "30"
-    healthy_threshold   = "2"
-    unhealthy_threshold = "2"
-  }
-
-  tags = {
-    Name = var.proxy_target_group_name
-  }
-}
-
 ### ECS Service ###
 
 resource "aws_security_group" "ecs_sg" {
@@ -55,18 +32,10 @@ resource "aws_security_group" "ecs_sg" {
 
   ingress {
     protocol    = "tcp"
-    from_port   = 5133
-    to_port     = 5133
+    from_port   = 3000
+    to_port     = 3000
     self        = "false"
-    cidr_blocks = [var.public_subnet_cidr]
-  }
-
-  ingress {
-    protocol    = "tcp"
-    from_port   = 65432
-    to_port     = 65432
-    self        = "false"
-    cidr_blocks = [var.public_subnet_cidr]
+    cidr_blocks = var.public_subnet_cidrs
   }
 
   egress {
@@ -103,7 +72,7 @@ resource "aws_ecs_service" "electric_sync" {
 
   network_configuration {
     security_groups = [aws_security_group.ecs_sg.id]
-    subnets         = [var.public_subnet_id]
+    subnets         = var.public_subnet_ids
 
     # This is required for Fargate tasks launched by this service to be able to
     # pull a Docker image from ECR or Docker Hub.
@@ -113,13 +82,7 @@ resource "aws_ecs_service" "electric_sync" {
   load_balancer {
     target_group_arn = aws_lb_target_group.main.id
     container_name   = var.task_container_name
-    container_port   = 5133
-  }
-
-  load_balancer {
-    target_group_arn = aws_lb_target_group.proxy.id
-    container_name   = var.task_container_name
-    container_port   = 65432
+    container_port   = 3000
   }
 
   # This is needed to keep terraform from falling into an infinite loop when the task fails to

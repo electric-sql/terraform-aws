@@ -9,7 +9,7 @@ module "vpc" {
   source = "./modules/vpc"
 
   cidr_block           = var.vpc_cidr_block
-  public_subnet_cidr   = var.vpc_public_subnet_cidr
+  public_subnet_cidrs  = var.vpc_public_subnet_cidrs
   private_subnet_cidrs = var.vpc_private_subnet_cidrs
 }
 
@@ -38,20 +38,20 @@ module "ecs_task_definition" {
 
   container_environment = [
     {
-      name  = "AUTH_MODE"
-      value = "insecure"
+      name  = "LOG_LEVEL"
+      value = "info"
     },
     {
       name  = "DATABASE_URL"
       value = module.rds.connection_uri
     },
     {
-      name  = "ELECTRIC_WRITE_TO_PG_MODE"
-      value = "direct_writes"
+      name  = "ELECTRIC_INSTANCE_ID"
+      value = "terraform-aws-test-instance"
     },
     {
-      name  = "PG_PROXY_PASSWORD"
-      value = var.pg_proxy_password
+      name  = "PROMETHEUS_PORT"
+      value = "4000"
     }
   ]
 }
@@ -60,51 +60,18 @@ module "ecs_service" {
   source = "./modules/ecs_service"
 
   vpc_id              = module.vpc.id
-  public_subnet_cidr  = var.vpc_public_subnet_cidr
-  public_subnet_id    = module.vpc.public_subnet_id
+  public_subnet_cidrs = var.vpc_public_subnet_cidrs
+  public_subnet_ids   = module.vpc.public_subnet_ids
   task_definition     = module.ecs_task_definition
   task_container_name = var.ecs_task_container_name
 }
 
-# You'll have to manually copy the CNAME value from the
-# request in AWS console and update your custom domain name's records
-# with it to pass the DNS validation.
-resource "aws_acm_certificate" "tls_cert" {
-  domain_name               = var.tls_cert_domain
-  subject_alternative_names = var.tls_cert_aliases
-  key_algorithm             = var.tls_cert_key_algorithm
-  validation_method         = "DNS"
-
-  lifecycle {
-    create_before_destroy = true
-  }
-}
-
-
 module "load_balancer" {
   source = "./modules/load_balancer"
 
-  vpc_id           = module.vpc.id
-  public_subnet_id = module.vpc.public_subnet_id
-  tls_certificate  = aws_acm_certificate.tls_cert
-  ssl_policy       = var.load_balancer_ssl_policy
+  vpc_id              = module.vpc.id
+  subnet_ids          = module.vpc.public_subnet_ids
+  tls_certificate_arn = var.tls_certificate_arn
 
-  lb_target_group_main  = module.ecs_service.lb_target_group_main
-  lb_target_group_proxy = module.ecs_service.lb_target_group_proxy
-}
-
-### Frontend
-
-module "s3" {
-  source = "./modules/s3"
-
-  app_bucket_name = var.s3_bucket_name
-}
-
-module "cloudfront" {
-  source = "./modules/cloudfront"
-
-  web_app_bucket            = module.s3.bucket
-  tls_certificate           = aws_acm_certificate.tls_cert
-  distribution_domain_alias = var.cloudfront_domain
+  lb_target_group_main = module.ecs_service.lb_target_group_main
 }
