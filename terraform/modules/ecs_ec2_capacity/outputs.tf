@@ -1,6 +1,6 @@
 output "capacity_provider_name" {
-  description = "Name of the ECS capacity provider — use in the service's capacity_provider_strategy"
-  value       = aws_ecs_capacity_provider.this.name
+  description = "Name of the ECS capacity provider — use in the service's capacity_provider_strategy. Derived from the cluster association so consumers wait for it"
+  value       = one(aws_ecs_cluster_capacity_providers.this.capacity_providers)
 }
 
 output "instance_security_group_id" {

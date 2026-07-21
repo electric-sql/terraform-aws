@@ -41,5 +41,17 @@ See [`terraform/`](./terraform) (start from
 `terraform.tfvars.example`) or [`pulumi/README.md`](./pulumi/README.md)
 (start from `Pulumi.example.yaml`).
 
+### TLS certificate
+
+The load balancer serves HTTPS using an [AWS ACM](https://docs.aws.amazon.com/acm/latest/userguide/gettingstarted.html) certificate:
+
+1. Request a public certificate in ACM, in the same region you deploy to.
+2. Validate it via DNS by creating the CNAME record ACM shows you.
+3. Pass its ARN as `tls_certificate_arn` (Terraform) or
+   `electric-aws:tlsCertificateArn` (Pulumi).
+
+In the Terraform config the certificate is required. In the Pulumi config
+it is optional — omit it to serve plain HTTP only.
+
 > This repo was previously `electric-sql/terraform-aws`; old links
 > redirect here.

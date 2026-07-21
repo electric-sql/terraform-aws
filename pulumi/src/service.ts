@@ -21,6 +21,7 @@ export function createElectricService(args: {
   environment: pulumi.Input<{ name: string; value: pulumi.Input<string> }[]>
   instanceLabel: string
   region: pulumi.Input<string>
+  dependsOn?: pulumi.Resource[]
 }): { service: aws.ecs.Service; taskDefinition: aws.ecs.TaskDefinition } {
   const isEc2 = args.launchType === "EC2"
 
@@ -175,7 +176,7 @@ export function createElectricService(args: {
         containerPort: 3000,
       },
     ],
-  }, { ignoreChanges: ["desiredCount"] }) // keeps Pulumi from fighting AWS when the task fails to start and desired count is adjusted
+  }, { ignoreChanges: ["desiredCount"], dependsOn: args.dependsOn }) // keeps Pulumi from fighting AWS when the task fails to start and desired count is adjusted
 
   return { service, taskDefinition }
 }

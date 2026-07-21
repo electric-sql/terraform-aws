@@ -32,6 +32,7 @@ export function createEc2Capacity(args: {
   capacityProvider: aws.ecs.CapacityProvider
   asg: aws.autoscaling.Group
   instanceSecurityGroup: aws.ec2.SecurityGroup
+  clusterCapacityProviders: aws.ecs.ClusterCapacityProviders
 } {
   // Task ENIs (awsvpc) carry their own security group; the instance
   // only needs outbound access (ECS agent, image pulls, SSM).
@@ -138,6 +139,8 @@ export function createEc2Capacity(args: {
     launchTemplate: { id: launchTemplate.id, version: "$Latest" },
     // Required for ECS managed termination protection.
     protectFromScaleIn: true,
+    // Scale-in protection blocks normal ASG drain on destroy.
+    forceDelete: true,
     healthCheckType: "EC2",
     healthCheckGracePeriod: 300,
     tags: [
@@ -169,10 +172,18 @@ export function createEc2Capacity(args: {
     },
   })
 
-  new aws.ecs.ClusterCapacityProviders("electric", {
-    clusterName: args.clusterName,
-    capacityProviders: [capacityProvider.name],
-  })
+  const clusterCapacityProviders = new aws.ecs.ClusterCapacityProviders(
+    "electric",
+    {
+      clusterName: args.clusterName,
+      capacityProviders: [capacityProvider.name],
+    }
+  )
 
-  return { capacityProvider, asg, instanceSecurityGroup }
+  return {
+    capacityProvider,
+    asg,
+    instanceSecurityGroup,
+    clusterCapacityProviders,
+  }
 }

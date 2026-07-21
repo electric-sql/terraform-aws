@@ -146,6 +146,10 @@ resource "aws_autoscaling_group" "this" {
   # that are running tasks.
   protect_from_scale_in = true
 
+  # Scale-in protection blocks normal ASG drain on destroy; force_delete
+  # lets `terraform destroy` terminate the instances anyway.
+  force_delete = true
+
   health_check_type         = "EC2"
   health_check_grace_period = 300
 

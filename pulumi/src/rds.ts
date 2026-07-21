@@ -42,7 +42,7 @@ export function createDatabase(args: {
 
   const instance = new aws.rds.Instance("electric", {
     engine: "postgres",
-    engineVersion: "15.5",
+    engineVersion: "15",
     instanceClass: "db.t4g.micro",
     allocatedStorage: 20,
     dbName: args.dbName,

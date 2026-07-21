@@ -86,6 +86,8 @@ createElectricService({
   ],
   instanceLabel,
   region,
+  // Ensure the capacity provider is associated with the cluster first.
+  dependsOn: capacity ? [capacity.clusterCapacityProviders] : undefined,
 })
 
 export const loadBalancerDomain = lb.dnsName
