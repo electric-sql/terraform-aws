@@ -175,7 +175,7 @@ export function createElectricService(args: {
         containerPort: 3000,
       },
     ],
-  })
+  }, { ignoreChanges: ["desiredCount"] }) // keeps Pulumi from fighting AWS when the task fails to start and desired count is adjusted
 
   return { service, taskDefinition }
 }
