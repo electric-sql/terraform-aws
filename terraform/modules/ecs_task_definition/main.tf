@@ -31,15 +31,28 @@ resource "aws_iam_role_policy_attachment" "ecs-task-execution-role-policy-attach
 resource "aws_ecs_task_definition" "electric_sync" {
   family                   = var.task_definition_family
   network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = 256 # 0.25 vCPU
-  memory                   = 512 # 0.5 GB
+  requires_compatibilities = [var.launch_type]
+  cpu                      = var.task_cpu
+  memory                   = var.task_memory
 
   execution_role_arn = aws_iam_role.ecs_task_execution_role.arn
 
   runtime_platform {
     operating_system_family = "LINUX"
     cpu_architecture        = "X86_64"
+  }
+
+  # On EC2 the shape-log storage is a bind mount from the host's
+  # bootstrap-formatted data disk (see modules/ecs_ec2_capacity).
+  # Data survives task restarts; Electric rebuilds it from Postgres
+  # if the host is replaced.
+  dynamic "volume" {
+    for_each = var.launch_type == "EC2" ? [1] : []
+
+    content {
+      name      = "electric-data"
+      host_path = "/mnt/nvme/electric/${var.instance_label}"
+    }
   }
 
   container_definitions = jsonencode([
@@ -59,7 +72,22 @@ resource "aws_ecs_task_definition" "electric_sync" {
         }
       ]
 
-      environment = var.container_environment
+      mountPoints = var.launch_type == "EC2" ? [
+        {
+          sourceVolume  = "electric-data"
+          containerPath = "/var/lib/electric"
+        }
+      ] : []
+
+      environment = concat(
+        var.container_environment,
+        var.launch_type == "EC2" ? [
+          {
+            name  = "ELECTRIC_STORAGE_DIR"
+            value = "/var/lib/electric"
+          }
+        ] : []
+      )
 
       logConfiguration = {
         logDriver = "awslogs",

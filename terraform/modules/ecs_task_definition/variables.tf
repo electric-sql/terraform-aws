@@ -34,3 +34,32 @@ variable "container_name" {
   description = "Name of the sole container that runs as part of the task"
   default     = "electric-sync"
 }
+
+variable "launch_type" {
+  description = "ECS launch type the task definition targets: FARGATE or EC2"
+  type        = string
+  default     = "FARGATE"
+
+  validation {
+    condition     = contains(["FARGATE", "EC2"], var.launch_type)
+    error_message = "launch_type must be FARGATE or EC2."
+  }
+}
+
+variable "task_cpu" {
+  description = "Task CPU units (1024 = 1 vCPU). For EC2, size to the host: full vCPUs minus nothing (CPU is compressible)"
+  type        = number
+  default     = 256
+}
+
+variable "task_memory" {
+  description = "Task memory in MiB. For EC2, size to the host total minus ~2048 MiB for the OS, Docker and ECS agent"
+  type        = number
+  default     = 512
+}
+
+variable "instance_label" {
+  description = "Label used in the host data directory path (/mnt/nvme/electric/<label>). Must match the ecs_ec2_capacity module's instance_label"
+  type        = string
+  default     = "main"
+}
