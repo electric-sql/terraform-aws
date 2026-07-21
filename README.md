@@ -37,7 +37,7 @@ bind-mounts the resulting directory as its storage dir.
 
 ## Usage
 
-See [`terraform/`](./terraform) (start from
+See [`terraform/README.md`](./terraform/README.md) (start from
 `terraform.tfvars.example`) or [`pulumi/README.md`](./pulumi/README.md)
 (start from `Pulumi.example.yaml`).
 
