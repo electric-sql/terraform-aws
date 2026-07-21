@@ -28,6 +28,25 @@ module "rds" {
 
 ### Backend
 
+resource "aws_ecs_cluster" "main" {
+  name = var.ecs_cluster_name
+
+  tags = {
+    Name = var.ecs_cluster_name
+  }
+}
+
+module "ecs_ec2_capacity" {
+  count  = var.launch_type == "EC2" ? 1 : 0
+  source = "./modules/ecs_ec2_capacity"
+
+  cluster_name  = aws_ecs_cluster.main.name
+  vpc_id        = module.vpc.id
+  subnet_ids    = module.vpc.public_subnet_ids
+  instance_type = var.ec2_instance_type
+  data_storage  = var.ec2_data_storage
+}
+
 module "ecs_task_definition" {
   source = "./modules/ecs_task_definition"
 
@@ -36,9 +55,13 @@ module "ecs_task_definition" {
 
   container_name = var.ecs_task_container_name
 
+  launch_type = var.launch_type
+  task_cpu    = var.launch_type == "EC2" ? var.ec2_task_cpu : 256
+  task_memory = var.launch_type == "EC2" ? var.ec2_task_memory : 512
+
   container_environment = [
     {
-      name  = "LOG_LEVEL"
+      name  = "ELECTRIC_LOG_LEVEL"
       value = "info"
     },
     {
@@ -46,12 +69,12 @@ module "ecs_task_definition" {
       value = module.rds.connection_uri
     },
     {
-      name  = "ELECTRIC_INSTANCE_ID"
-      value = "terraform-aws-test-instance"
+      name  = "ELECTRIC_SECRET"
+      value = var.electric_secret
     },
     {
-      name  = "PROMETHEUS_PORT"
-      value = "4000"
+      name  = "ELECTRIC_INSTANCE_ID"
+      value = "electric-aws-example"
     }
   ]
 }
@@ -64,6 +87,10 @@ module "ecs_service" {
   public_subnet_ids   = module.vpc.public_subnet_ids
   task_definition     = module.ecs_task_definition
   task_container_name = var.ecs_task_container_name
+
+  cluster_arn            = aws_ecs_cluster.main.arn
+  launch_type            = var.launch_type
+  capacity_provider_name = var.launch_type == "EC2" ? module.ecs_ec2_capacity[0].capacity_provider_name : null
 }
 
 module "load_balancer" {
