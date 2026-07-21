@@ -2,3 +2,5 @@
 terraform.tfstate
 terraform.tfstate.backup
 terraform.tfvars
+pulumi/node_modules/
+pulumi/bin/

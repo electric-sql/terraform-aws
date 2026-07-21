@@ -1,0 +1,16 @@
+{
+  "name": "electric-aws",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@pulumi/aws": "^6.50.0",
+    "@pulumi/awsx": "^2.14.0",
+    "@pulumi/pulumi": "^3.130.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "typescript": "^5.5.0"
+  }
+}

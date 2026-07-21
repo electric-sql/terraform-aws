@@ -1,0 +1,5 @@
+name: electric-aws
+runtime:
+  name: nodejs
+description: Deploy the Electric sync service to AWS ECS (Fargate, or EC2 with NVMe/EBS storage)
+main: src/index.ts
