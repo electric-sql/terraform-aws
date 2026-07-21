@@ -37,8 +37,22 @@ else
 fi
 
 mkfs.xfs -f "$TARGET"
+
+# fstab outlives this script, which only runs on first boot, so it has to
+# name the disk in a way that survives a reboot. Device paths don't: NVMe
+# enumeration order isn't guaranteed, and a RAID array reassembled on boot
+# can come back under a different name (/dev/md127). Probe with -p so the
+# UUID comes from the filesystem just written rather than a stale cache.
+FS_UUID=$(blkid -p -s UUID -o value "$TARGET")
+if [ -z "$FS_UUID" ]; then
+  echo "could not read filesystem UUID from $TARGET" >&2
+  exit 1
+fi
+
 mkdir -p /mnt/nvme
-echo "$TARGET /mnt/nvme xfs defaults,noatime,nodiscard 0 2" >> /etc/fstab
+# nofail: a blank or absent data disk (instance store is wiped by a
+# stop/start) must not drop the host into emergency mode on boot.
+echo "UUID=$FS_UUID /mnt/nvme xfs defaults,noatime,nodiscard,nofail 0 2" >> /etc/fstab
 mount /mnt/nvme
 
 # The Electric container runs as uid 1000; the bind-mounted data dir
