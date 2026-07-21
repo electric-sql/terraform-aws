@@ -41,6 +41,7 @@ const vpc = createVpc()
 
 const database = createDatabase({
   vpcId: vpc.vpcId,
+  vpcCidrBlock: vpc.vpc.cidrBlock,
   privateSubnetIds: vpc.privateSubnetIds,
   username: rdsUsername,
   password: rdsPassword,

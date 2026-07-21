@@ -7,6 +7,7 @@ import * as pulumi from "@pulumi/pulumi"
  */
 export function createDatabase(args: {
   vpcId: pulumi.Input<string>
+  vpcCidrBlock: pulumi.Input<string>
   privateSubnetIds: pulumi.Input<string[]>
   username: string
   password: pulumi.Input<string>
@@ -15,12 +16,14 @@ export function createDatabase(args: {
   const securityGroup = new aws.ec2.SecurityGroup("rds", {
     vpcId: args.vpcId,
     description: "Postgres access from inside the VPC",
+    // Taken from the VPC rather than hardcoded, so the rule cannot drift
+    // from the network the instance actually sits in.
     ingress: [
       {
         protocol: "tcp",
         fromPort: 5432,
         toPort: 5432,
-        cidrBlocks: ["10.0.0.0/24"],
+        cidrBlocks: [args.vpcCidrBlock],
       },
     ],
   })

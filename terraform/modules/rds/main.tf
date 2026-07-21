@@ -1,13 +1,22 @@
+# Read the VPC's CIDR rather than taking it as a variable, so the ingress
+# rule below cannot drift from the network the instance actually sits in.
+data "aws_vpc" "main" {
+  id = var.vpc_id
+}
+
 resource "aws_security_group" "rds_sg" {
   name_prefix = var.security_group_name_prefix
 
   vpc_id = var.vpc_id
 
+  # Postgres is reachable from inside the VPC only. The instance already
+  # sits in private subnets with no internet route and is not publicly
+  # accessible; this keeps the security group from claiming otherwise.
   ingress {
     protocol    = "tcp"
     from_port   = 5432
     to_port     = 5432
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = [data.aws_vpc.main.cidr_block]
   }
 
   tags = {
