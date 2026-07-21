@@ -24,11 +24,6 @@ variable "security_group_name" {
   default     = "Electric ECS security group"
 }
 
-variable "cluster_name" {
-  description = "Name of the new ECS cluster"
-  default     = "electric-cluster"
-}
-
 variable "service_name" {
   description = "Name of the Electric ECS service"
   default     = "electric-sync"
@@ -46,4 +41,26 @@ variable "main_target_group_name" {
 variable "proxy_target_group_name" {
   description = "Name of the target group for the Migrations proxy TCP endpoint"
   default     = "electric-proxy"
+}
+
+variable "cluster_arn" {
+  description = "ARN of the ECS cluster (created in the root module) to run the service in"
+  type        = string
+}
+
+variable "launch_type" {
+  description = "ECS launch type: FARGATE or EC2"
+  type        = string
+  default     = "FARGATE"
+
+  validation {
+    condition     = contains(["FARGATE", "EC2"], var.launch_type)
+    error_message = "launch_type must be FARGATE or EC2."
+  }
+}
+
+variable "capacity_provider_name" {
+  description = "Capacity provider to place tasks on when launch_type is EC2 (from the ecs_ec2_capacity module)"
+  type        = string
+  default     = null
 }
