@@ -1,0 +1,26 @@
+# Copy the `config:` section into your stack file (Pulumi.<stack>.yaml),
+# or set values with `pulumi config set`. Secrets:
+#   pulumi config set --secret electricSecret <long-random-string>
+#   pulumi config set --secret rdsPassword <password>
+config:
+  aws:region: us-east-1
+
+  # FARGATE (default, simplest) or EC2 (persistent local storage).
+  electric-aws:launchType: EC2
+
+  # EC2-only. m6id.large has 118 GB of local NVMe instance store.
+  electric-aws:instanceType: m6id.large
+  electric-aws:dataStorage:
+    kind: nvme
+  # Alternative: compute-only instance + tunable gp3 EBS data volume:
+  # electric-aws:instanceType: m6a.large
+  # electric-aws:dataStorage:
+  #   kind: ebs-gp3
+  #   sizeGb: 100
+  #   iops: 3000
+  #   throughputMbps: 125
+  electric-aws:taskCpu: 2048
+  electric-aws:taskMemoryMib: 6144
+
+  electric-aws:dockerImageTag: latest
+  # electric-aws:tlsCertificateArn: arn:aws:acm:REGION:ACCOUNT_ID:certificate/UUID
