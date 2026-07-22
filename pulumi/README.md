@@ -13,14 +13,51 @@ with a choice of launch type:
 Also provisions a VPC, an RDS Postgres with logical replication enabled,
 and an application load balancer health-checked on `/v1/health`.
 
+## Prerequisites
+
+- The [Pulumi CLI](https://www.pulumi.com/docs/install/). `npm install`
+  installs only the Pulumi SDK that this program imports — not the
+  `pulumi` command itself, which is a separate binary.
+- AWS credentials in your environment, via `AWS_PROFILE`,
+  `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`, SSO or an instance role.
+  Pulumi uses the standard AWS SDK credential chain, so there is no
+  profile to set in the stack config.
+- Node.js.
+
 ## Usage
+
+Install the program's dependencies:
 
 ```sh
 npm install
+```
+
+Log in to a state backend, then create a stack. Use `pulumi login` for
+Pulumi Cloud, or `pulumi login --local` to keep state on this machine
+(with `--local`, `--secret` config values are encrypted with a passphrase
+you're prompted for):
+
+```sh
+pulumi login
 pulumi stack init dev
-# copy config from Pulumi.example.yaml, then:
+```
+
+Set the region and the two required secrets:
+
+```sh
+pulumi config set aws:region us-east-1
 pulumi config set --secret electricSecret $(openssl rand -hex 32)
 pulumi config set --secret rdsPassword <password>
+```
+
+The defaults deploy Fargate. For the EC2 launch type and storage options,
+copy the relevant settings from
+[`Pulumi.example.yaml`](./Pulumi.example.yaml) into your stack's config
+file (`Pulumi.dev.yaml`), or set them with `pulumi config set`.
+
+Deploy:
+
+```sh
 pulumi up
 ```
 
