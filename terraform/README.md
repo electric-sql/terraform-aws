@@ -152,6 +152,32 @@ To change Electric's configuration, edit `container_environment` in the
 `ecs_task_definition` module block in `main.tf` and rerun
 `terraform apply`.
 
+## Tearing it down
+
+Run `terraform destroy` from this directory to remove everything the
+configuration created — the ECS service and cluster, the EC2 container
+instance and its autoscaling group, the load balancer, the RDS instance
+and the VPC:
+
+```shell
+terraform destroy
+```
+
+The container instance's autoscaling group has scale-in protection
+enabled, but the launch template sets `force_delete = true`, so the
+destroy tears the instance down instead of hanging on it. No manual
+intervention is needed.
+
+> [!WARNING] The database is deleted without a final snapshot
+> The RDS instance is created with `skip_final_snapshot = true`, so
+> `terraform destroy` removes it and all of its data with no backup. If
+> you want to keep the data, take a snapshot first, or set
+> `skip_final_snapshot = false` in `modules/rds/main.tf` before destroying.
+
+Two things this configuration doesn't manage, so remove them by hand if
+you no longer need them: the ACM certificate you requested for TLS, and
+the CNAME record you created to point your domain at the load balancer.
+
 ## Components
 
 The configuration is split into local modules, each a more-or-less

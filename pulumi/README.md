@@ -67,3 +67,31 @@ npx pulumi up
 The `loadBalancerDomain` output is your Electric endpoint. See the
 [AWS integration docs](https://electric-sql.com/docs/sync/integrations/aws)
 for guidance on choosing a launch type and sizing storage.
+
+## Tearing it down
+
+Remove everything the stack created — the ECS service and cluster, the
+EC2 container instance and its autoscaling group, the load balancer, the
+RDS instance and the VPC:
+
+```sh
+npx pulumi destroy
+```
+
+The autoscaling group has scale-in protection enabled, but the launch
+template sets `forceDelete: true`, so the destroy tears the instance down
+instead of hanging on it. To also remove the (now empty) stack itself:
+
+```sh
+npx pulumi stack rm dev
+```
+
+> [!WARNING] The database is deleted without a final snapshot
+> RDS is created with `skipFinalSnapshot: true`, so `pulumi destroy`
+> removes it and all of its data with no backup. Take a snapshot first, or
+> set `skipFinalSnapshot: false` in `src/rds.ts`, if you need to keep the
+> data.
+
+The ACM certificate (if you set `tlsCertificateArn`) and any DNS records
+pointing at the load balancer are not managed by this stack; remove them
+separately if you no longer need them.
