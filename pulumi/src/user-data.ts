@@ -23,10 +23,15 @@ export function renderUserData(
     "utf8"
   )
   return pulumi.output(clusterName).apply((cluster) => {
+    // split().join() does a literal global replace, the same as
+    // String.replaceAll but without depending on the ES2021 lib — Pulumi's
+    // runtime ts-node doesn't honour this project's `target` for lib
+    // selection, so replaceAll fails to compile there. Order matters:
+    // substitute the two injection points first, then unescape `$${`.
     const script = template
-      .replaceAll("${cluster_name}", cluster)
-      .replaceAll("${instance_label}", instanceLabel)
-      .replaceAll("$${", "${")
+      .split("${cluster_name}").join(cluster)
+      .split("${instance_label}").join(instanceLabel)
+      .split("$${").join("${")
     return Buffer.from(script).toString("base64")
   })
 }

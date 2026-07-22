@@ -7,3 +7,7 @@ pulumi/bin/
 # This is an npm project (package-lock.json); ignore stray pnpm/yarn locks.
 pulumi/pnpm-lock.yaml
 pulumi/yarn.lock
+# Per-stack Pulumi config is created locally and may hold encrypted
+# secrets; only the example stack is committed.
+pulumi/Pulumi.*.yaml
+!pulumi/Pulumi.example.yaml
