@@ -4,3 +4,6 @@ terraform.tfstate.backup
 terraform.tfvars
 pulumi/node_modules/
 pulumi/bin/
+# This is an npm project (package-lock.json); ignore stray pnpm/yarn locks.
+pulumi/pnpm-lock.yaml
+pulumi/yarn.lock
