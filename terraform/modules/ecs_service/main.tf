@@ -51,22 +51,31 @@ resource "aws_security_group" "ecs_sg" {
   }
 }
 
-resource "aws_ecs_cluster" "main" {
-  name = var.cluster_name
-
-  tags = {
-    Name = var.cluster_name
-  }
-}
-
 resource "aws_ecs_service" "electric_sync" {
   name                              = var.service_name
-  cluster                           = aws_ecs_cluster.main.id
+  cluster                           = var.cluster_arn
   task_definition                   = var.task_definition.arn
   desired_count                     = 1
-  launch_type                       = "FARGATE"
   health_check_grace_period_seconds = 60
 
+  # launch_type and capacity_provider_strategy are mutually exclusive:
+  # Fargate services set launch_type; EC2 services place tasks via the
+  # capacity provider (which manages the ASG).
+  launch_type = var.launch_type == "FARGATE" ? "FARGATE" : null
+
+  dynamic "capacity_provider_strategy" {
+    for_each = var.launch_type == "EC2" ? [1] : []
+
+    content {
+      capacity_provider = var.capacity_provider_name
+      weight            = 1
+      base              = 1
+    }
+  }
+
+  # Single-host deployment: stop the old task before starting the new
+  # one (the replacement task needs the same host's storage and the
+  # replication slot).
   deployment_minimum_healthy_percent = 0
   deployment_maximum_percent         = 100
 
@@ -74,9 +83,10 @@ resource "aws_ecs_service" "electric_sync" {
     security_groups = [aws_security_group.ecs_sg.id]
     subnets         = var.public_subnet_ids
 
-    # This is required for Fargate tasks launched by this service to be able to
-    # pull a Docker image from ECR or Docker Hub.
-    assign_public_ip = true
+    # Fargate tasks pull their image via the task ENI, so it needs a
+    # public IP. EC2 task ENIs cannot have one (pulls go via the host
+    # ENI instead).
+    assign_public_ip = var.launch_type == "FARGATE"
   }
 
   load_balancer {
@@ -85,8 +95,8 @@ resource "aws_ecs_service" "electric_sync" {
     container_port   = 3000
   }
 
-  # This is needed to keep terraform from falling into an infinite loop when the task fails to
-  # start and is automatically recreated by AWS.
+  # This is needed to keep terraform from falling into an infinite loop
+  # when the task fails to start and is automatically recreated by AWS.
   lifecycle {
     ignore_changes = [desired_count]
   }

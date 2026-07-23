@@ -1,0 +1,38 @@
+profile = "testing"
+region  = "us-east-1"
+
+vpc_cidr_block           = "10.0.0.0/24"
+vpc_private_subnet_cidrs = ["10.0.0.0/28", "10.0.0.16/28"]
+vpc_public_subnet_cidrs  = ["10.0.0.32/28", "10.0.0.48/28"]
+
+rds_db_name  = "main"
+rds_username = "postgres"
+rds_password = "pg_password"
+
+ecs_task_container_name = "electric-sync"
+
+docker_image_tag = "latest"
+
+electric_secret = "generate-a-long-random-string"
+
+# Launch type: FARGATE (default, simplest) or EC2 (persistent local storage).
+launch_type = "EC2"
+
+# EC2-only settings (ignored for FARGATE).
+# m6id.large has 118 GB of local NVMe instance store.
+ec2_instance_type = "m6id.large"
+ec2_data_storage = {
+  kind = "nvme"
+}
+# Alternative: compute-only instance + tunable gp3 EBS data volume:
+# ec2_instance_type = "m6a.large"
+# ec2_data_storage = {
+#   kind            = "ebs-gp3"
+#   size_gb         = 100
+#   iops            = 3000
+#   throughput_mbps = 125
+# }
+ec2_task_cpu    = 2048
+ec2_task_memory = 6144
+
+tls_certificate_arn = "arn:aws:acm:REGION:ACCOUNT_ID:certificate/UUID"

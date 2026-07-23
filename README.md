@@ -1,163 +1,57 @@
-ElectricSQL on Amazon ECS
-=========================
+# electric-aws
 
-Terraform configuration for provisioning an ECS cluster to run [ElectricSQL](https://electric-sql.com/) behind an Application Load Balancer, connected to an instance of RDS for PostgreSQL.
+Example configurations for deploying the
+[Electric sync service](https://electric-sql.com) to AWS ECS, in two
+flavours:
 
-> [!WARNING]
-> This Terraform configuration is a **work in progress**. You should review it carefully
-> before using it in a production setting.
->
-> Please let us know if you notice any bugs, missing configuration or poorly chosen
-> defaults. See "Contributing" and "Support" sections at the bottom.
+- [`terraform/`](./terraform) — Terraform (>= 1.3)
+- [`pulumi/`](./pulumi) — Pulumi (TypeScript)
 
-## Overview
+Both provision the same stack: a VPC, an RDS Postgres with logical
+replication enabled, an ECS cluster running the
+[electricsql/electric](https://hub.docker.com/r/electricsql/electric)
+container, and an application load balancer in front.
 
-Running `terraform apply` for this configuration without any modifications will provision the following infrastructure:
+## Choosing a launch type
 
-  - a new VPC with two private and two public subnets
-  - an instance of RDS for PostgreSQL that has logical replication enabled
-  - Electric sync service running the `electricsql/electric:latest` image [from Docker Hub](https://hub.docker.com/r/electricsql/electric) as a Fargate task on ECS
-  - an Application Load Balancer with an HTTP and an HTTPS listener, both routing to the default port of the Electric sync service container
+| | Storage | Best for |
+|---|---|---|
+| **Fargate** (default) | Ephemeral | Trying Electric out; light workloads |
+| **EC2 + NVMe instance store** (`i4i`/`m6id` types) | Local NVMe, fastest | Disk-intensive production workloads |
+| **EC2 + gp3 EBS data volume** (`m6a`/`m6i`/`m7a`/`m7i` types) | Attached EBS, tunable IOPS/throughput | Production workloads at lower cost |
 
-Things you can customize with input variables:
+Electric treats its on-disk shape logs as a rebuildable cache, so
+losing the disk on host replacement is safe — but disk speed directly
+drives sync performance. See the
+[deployment guide](https://electric-sql.com/docs/sync/guides/deployment)
+and the
+[AWS integration docs](https://electric-sql.com/docs/sync/integrations/aws)
+for details.
 
-  - the name of each logical component
-  - database credentials
-  - Electric's Docker image tag, etc.
-
-> [!NOTE]
-> When building this infrastructure from scratch for the first time, you will need to perform some manual steps, including initializing the remote state for Terraform and requesting a TLS certificate from AWS Certificate Manager. See the next section for a complete walkthrough.
+On EC2, the instance's boot script
+([`shared/user-data.sh.tpl`](./shared/user-data.sh.tpl)) discovers every
+non-root NVMe device — local instance store or attached EBS (both appear
+as `/dev/nvme*` on Nitro hosts) — RAID0s multiples, formats XFS and
+mounts at `/mnt/nvme`, then joins the ECS cluster. The Electric task
+bind-mounts the resulting directory as its storage dir.
 
 ## Usage
 
-### Initial setup
+See [`terraform/README.md`](./terraform/README.md) (start from
+`terraform.tfvars.example`) or [`pulumi/README.md`](./pulumi/README.md)
+(start from `Pulumi.example.yaml`).
 
-To set up a new infra from scratch, follow these steps:
+### TLS certificate
 
-1. Sign in to AWS CLI and input your access key id, secret key and region.
+The load balancer serves HTTPS using an [AWS ACM](https://docs.aws.amazon.com/acm/latest/userguide/gettingstarted.html) certificate:
 
-```shell
-aws configure --profile '<profile-name>'
-```
+1. Request a public certificate in ACM, in the same region you deploy to.
+2. Validate it via DNS by creating the CNAME record ACM shows you.
+3. Pass its ARN as `tls_certificate_arn` (Terraform) or
+   `electric-aws:tlsCertificateArn` (Pulumi).
 
-2. Initialize the provider and local modules.
+In the Terraform config the certificate is required. In the Pulumi config
+it is optional — omit it to serve plain HTTP only.
 
-```shell
-terraform init
-```
-
-3. Copy the `terraform.tfvars.example` file and edit the variable values in it to match your
-preferences. Use the same `<profile-name>` you specified above for the `profile` variable in
-your `terraform.tfvars` file.
-
-```shell
-cp terraform.tfvars.example terraform.tfvars
-```
-
-4. Request a TLS certificate from AWS Certificate Mananger, e.g. via the AWS console
-(https://console.aws.amazon.com/acm/home). You will need to provide a domain name, such as `my-electric-sync-service.example.com`. Keep a note of this as you'll create a CNAME for it below once you know the load balancer's hostname. (This is *different* from the validation CNAME you add in the next step).
-
-5. Verify your ownership of the domain by adding a validation CNAME record to your domain on the website you use to manage your DNS records. This is so that AWS can validate the certificate request and issue the certificate. You can find the "CNAME name" and "CNAME value" to use in the "Domains" section of the certificate page once you've created it. (If you don't see the information in the table, scroll right!).
-
-6. Use the ARN of the newly issued certificate as the value for the top-level `tls_certificate_arn` variable in your `terraform.tfvars` file.
-
-7. Provision the infrastructure.
-
-```shell
-terraform apply
-```
-
-8. Once the load balancer is up an running, create another new CNAME record on your domain using with the domain you chose for your certificate as the name and the load balancer's generated domain name as the value. Here's how it might look in Namecheap's advanced DNS management view:
-
-![CNAME in Namecheap](img/namecheap_cname.png)
-
-9. Try sending an HTTP request to your custom domain to verify that it's working:
-
-```sh
-$ curl -i https://sync.aws-testing.example.com/v1/health
-HTTP/2 200
-date: Thu, 14 Nov 2024 11:28:57 GMT
-content-type: application/json
-content-length: 19
-vary: accept-encoding
-cache-control: no-cache, no-store, must-revalidate
-x-request-id: GAfSPDjAhfDWy3QAAAXy
-server: ElectricSQL/0.8.1
-access-control-allow-origin: *
-access-control-expose-headers: *
-access-control-allow-methods: GET, HEAD
-
-{"status":"active"}
-```
-
-### Updating the sync service
-
-To upgrade the running Electric sync service to a new version of the Docker image, stop the current task and wait for the ECS scheduler to start a new task automatically. Every time a new Fargate task is started, it pulls the latest Docker image matching the configured tag from Docker Hub. The image tag to use is specified in `module.ecs_task_definition` in `main.tf`.
-
-```shell
-# Make sure you have the correct profile selected in your terminal
-export AWS_DEFAULT_PROFILE='<profile-name>'
-
-# Replace cluster_name below with your actual ECS cluster name
-cluster_name=electric_ecs_cluster
-aws ecs stop-task --cluster $cluster_name --task $(
-  aws ecs list-tasks --cluster $cluster_name --query 'taskArns[0]' --output text
-)
-```
-
-To update the sync service's configuration, edit `module.ecs_task_definition.container_environment` in `main.tf` and rerun the provisioning command:
-
-```shell
-terraform apply
-```
-
-## Components
-
-The configuration in this repo is split into a set of local modules which service as more-or-less self-contained logical units, making it easier to read through and modify. They are not meant to be used as standalone building blocks for other projects.
-
-Included modules:
-
-  - [vpc](./modules/vpc) - custom VPC for the RDS instance, the ECS task, and the Network Load Balancer
-  - [rds](./modules/rds) - instance of RDS for Postgres with logical replication enabled
-  - [ecs_task_definition](./modules/ecs_task_definition) - Fargate task for the Electric sync service based on the [Docker Hub image](https://hub.docker.com/r/electricsql/electric)
-  - [ecs_service](./modules/ecs_service) - custom ECS cluster with one Fargate service that uses the task definition from above
-  - [load_balancer](./modules/load_balancer) - Application Load Balancer for SSL termination and routing traffic to the sync service's HTTP port
-
-## Input variables
-
-Each local module defines a set of variables, allowing one to modify its internal configuration. Not all of those variables are exposed in the top-level `variables.tf` file since they have default values suitable for provisioning a test infra. If you want to set custom values for some of those module variables, reference them in the `main.tf` file directly or add new variable definitions to the top-level `variables.tf` to use in module arguments in the `main.tf` file.
-
-## Use cases
-
-### Connecting to existing RDS instance
-
-TODO...
-
-If you already have an externally-managed RDS instance that has logical replication enabled, you can add its connection URI as an input variable to this configuration and reference it in the `DATABASE_URL` config passed to the `ecs_task_definition`'s `container_environment`.
-
-You will need to import the existing VPC in that case and adjust the CIDR blocks, instead of creating a brand new VPC to be managed by the Terraform configuration.
-
-```shell
-terraform import vpc ... subnets ...
-```
-
-### Connecting to external database
-
-If the database you want Electric to connect to is running in a VPC you don't have control over or even outside of AWS, you can pass its full connection URI to the `DATABASE_URL` config. The database must either be accessible over the public Internet, or you need to create the necessary network link between your VPC and the external database.
-
-### Importing existing VPC
-
-TODO...
-
-### Importing existing TLS certificates
-
-TODO...
-
-
-## Contributing
-
-See the [Community Guidelines](https://github.com/electric-sql/electric/blob/main/CODE_OF_CONDUCT.md) including the [Guide to Contributing](https://github.com/electric-sql/electric/blob/main/CONTRIBUTING.md) and [Contributor License Agreement](https://github.com/electric-sql/electric/blob/main/CLA.md).
-
-## Support
-
-We'd be happy to learn about your experience using this Terraform configuration and adapting it to your needs! We have an [open community Discord](https://discord.electric-sql.com). Come and say hello and let us know if you have any questions or need any help getting things running.
+> This repo was previously `electric-sql/terraform-aws`; old links
+> redirect here.
